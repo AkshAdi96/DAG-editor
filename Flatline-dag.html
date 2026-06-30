@@ -3,29 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flatline V1.5.11 DAG Architect</title>
+    <title>Flatline V1.6.2 Cloud Architect</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.css">
     <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     
     <style>
         :root {
             --bg-color: #1e1e1e; --node-bg: #252526; --text-color: #e0e0e0;
             --accent: #007acc; --danger: #d32f2f; --magic: #8e44ad;
-            --subj-physics: #005A9E; --subj-chemistry: #2E7D32; --subj-math: #B71C1C;
+            --subj-physics: #005A9E; --subj-chemistry: #2E7D32; --subj-math: #B71C1C; --subj-bio: #00695C;
         }
 
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); overflow: hidden; color: var(--text-color); }
         #drawflow { width: 100%; height: 100%; background-size: 25px 25px; background-image: linear-gradient(to right, #333 1px, transparent 1px), linear-gradient(to bottom, #333 1px, transparent 1px); }
 
-        /* Node Styling */
         .drawflow .drawflow-node { background: var(--node-bg) !important; border: 1px solid #444 !important; box-shadow: 0 4px 15px rgba(0,0,0,0.6) !important; border-radius: 8px !important; width: 320px; padding: 0 !important; z-index: 2; transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s; }
         .drawflow .drawflow-node.selected { border: 1px solid var(--accent) !important; box-shadow: 0 0 15px rgba(0, 122, 204, 0.4) !important; }
+        
         .subj-Physics .title-box { background: var(--subj-physics) !important; }
         .subj-Chemistry .title-box { background: var(--subj-chemistry) !important; }
         .subj-Mathematics .title-box { background: var(--subj-math) !important; }
+        .subj-Biology .title-box { background: var(--subj-bio) !important; }
 
-        /* Delete Button */
         .drawflow .drawflow-delete { background: #333 !important; color: #aaa !important; border: 1px solid #555 !important; border-radius: 50% !important; width: 24px !important; height: 24px !important; line-height: 22px !important; font-size: 12px !important; top: -12px !important; right: -12px !important; transition: 0.2s; z-index: 9999 !important; cursor: pointer !important; display: flex !important; align-items: center; justify-content: center; }
         .drawflow .drawflow-delete:hover { background: var(--danger) !important; color: white !important; border-color: var(--danger) !important; }
         
@@ -45,16 +48,20 @@
         .drawflow .connection .main-path { stroke: #888; stroke-width: 3px; }
         .drawflow .connection .main-path.selected { stroke: var(--accent); stroke-width: 4px; }
 
-        /* Control Panel */
-        .panel { position: absolute; top: 20px; left: 20px; z-index: 10; display: flex; gap: 10px; flex-wrap: wrap; width: 95%;}
+        .panel { position: absolute; top: 20px; left: 20px; z-index: 10; display: flex; gap: 10px; flex-wrap: wrap; width: 95%; align-items: center;}
         .primary-btn { background: var(--accent); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .primary-btn:hover { filter: brightness(1.2); }
         .btn-export { background: #2e7d32; } .btn-workspace { background: #555; } .btn-import { background: #d84315; }
         .btn-view { background: #444; } .btn-view:hover { background: #555; }
         .btn-magic { background: var(--magic); } .btn-magic:hover { filter: brightness(1.2); }
         .search-box { padding: 8px; border-radius: 5px; border: 1px solid #555; background: #111; color: white; width: 250px; }
+        
+        #cloud-status { color: #aaa; font-family: monospace; font-size: 12px; margin-left: 10px; display: flex; align-items: center; gap: 5px;}
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #aaa; }
+        .status-syncing { background: #f39c12; box-shadow: 0 0 8px #f39c12;}
+        .status-saved { background: #2ecc71; box-shadow: 0 0 8px #2ecc71;}
+        .status-error { background: #e74c3c; box-shadow: 0 0 8px #e74c3c;}
 
-        /* Modals */
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #252526; z-index: 100; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #444; padding: 20px; flex-direction: column; }
         #json-modal { width: 70%; height: 80%; } #edge-modal { width: 300px; gap: 10px;}
         textarea { flex-grow: 1; background: #1e1e1e; color: #d4d4d4; border: 1px solid #444; font-family: monospace; padding: 15px; border-radius: 5px; resize: none; }
@@ -68,20 +75,20 @@
 
     <div class="panel">
         <button class="primary-btn" onclick="addChapterNode()">+ Add Node</button>
-        <button class="primary-btn btn-workspace" onclick="downloadWorkspace()">💾 Save Workspace</button>
-        <button class="primary-btn btn-workspace" onclick="document.getElementById('file-ws').click()">📂 Load Workspace</button>
-        <button class="primary-btn btn-import" onclick="document.getElementById('file-engine').click()">📥 Import Engine JSON</button>
+        <button class="primary-btn btn-workspace" onclick="downloadWorkspace()">💾 Local Backup</button>
         
         <button class="primary-btn btn-view" onclick="collapseAllNodes()">⏬ Collapse All</button>
         <button class="primary-btn btn-view" onclick="expandAllNodes()">⏫ Expand All</button>
         <button class="primary-btn btn-view" onclick="snapAllWires()">🔄 Refresh Wires</button>
+        <button class="primary-btn btn-magic" onclick="autoGenerateWeights()">✨ Auto-Weights (Subject Isolated)</button>
 
-        <button class="primary-btn btn-magic" onclick="autoGenerateWeights()">✨ Auto-Weights</button>
-
-        <input type="file" id="file-ws" style="display: none;" accept=".json" onchange="loadWorkspaceFromFile(event)">
-        <input type="file" id="file-engine" style="display: none;" accept=".json" onchange="importEngineJSON(event)">
-        
         <input type="text" class="search-box" placeholder="🔍 Search Nodes..." onkeyup="searchNodes(this.value)">
+        
+        <div id="cloud-status">
+            <div id="status-dot" class="status-dot"></div>
+            <span id="status-text">Disconnected</span>
+        </div>
+
         <div style="flex-grow: 1;"></div>
         <button class="primary-btn btn-export" onclick="exportToFlatlineJSON()">🚀 Compile Flatline JSON</button>
     </div>
@@ -99,30 +106,52 @@
         <p style="font-size: 12px; color: #aaa; margin-top: -10px;" id="edge-desc">From A to B</p>
         
         <label>Dependency Weight</label>
-       <select id="edge-weight">
-    <option value="1.00">1.00 (Hard Block)</option>
-    <option value="0.35">0.35 (Significant Friction)</option>
-    <option value="0.19">0.19 (Soft Link)</option>
-</select>
-
-        <label>Required Mastery</label>
-        <select id="edge-mastery">
-            <option value="U0">U0 (None)</option>
-            <option value="U1">U1 (Basic)</option>
-            <option value="U2" selected>U2 (Survival)</option>
-            <option value="U3">U3 (Strong)</option>
-            <option value="U4">U4 (Advanced)</option>
+        <select id="edge-weight">
+            <option value="1.00">1.00 (Hard Block)</option>
+            <option value="0.35">0.35 (Significant Friction)</option>
+            <option value="0.19">0.19 (Soft Link)</option>
         </select>
-
-        <label>Notes (Optional)</label>
-        <input type="text" id="edge-notes" placeholder="Why is this required?">
-
+        
+        <label>Required Mastery</label><select id="edge-mastery"><option value="U0">U0 (None)</option><option value="U1">U1 (Basic)</option><option value="U2" selected>U2 (Survival)</option><option value="U3">U3 (Strong)</option><option value="U4">U4 (Advanced)</option></select>
+        <label>Notes (Optional)</label><input type="text" id="edge-notes" placeholder="Why is this required?">
         <button class="primary-btn" onclick="saveEdgeData()" style="width: 100%; margin-top: 10px;">Save Edge</button>
         <button class="close-btn delete-btn" style="width: 100%; margin-top: 5px;" onclick="deleteSelectedEdge()">Delete Edge</button>
         <button class="close-btn" style="width: 100%; margin-top: 5px;" onclick="closeModal('edge-modal')">Cancel</button>
     </div>
 
     <script>
+        // ==========================================
+        // 1. FIREBASE CONFIGURATION
+        // ==========================================
+        const firebaseConfig = {
+            // apiKey: "YOUR_API_KEY",
+            // authDomain: "YOUR_PROJECT.firebaseapp.com",
+            // projectId: "YOUR_PROJECT_ID",
+            // storageBucket: "YOUR_PROJECT.appspot.com",
+            // messagingSenderId: "YOUR_ID",
+            // appId: "YOUR_APP_ID"
+        };
+
+        let db = null;
+        let isFirebaseActive = false;
+        
+        try {
+            if (Object.keys(firebaseConfig).length > 0 && firebaseConfig.projectId) {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                isFirebaseActive = true;
+                updateCloudStatus("Connected. Loading...", "saved");
+            } else {
+                updateCloudStatus("Firebase Not Configured. Using Local Storage.", "error");
+            }
+        } catch (e) {
+            console.error("Firebase init error:", e);
+            updateCloudStatus("Firebase Connection Failed.", "error");
+        }
+
+        // ==========================================
+        // 2. CORE EDITOR SETUP
+        // ==========================================
         const id = document.getElementById("drawflow");
         const editor = new Drawflow(id);
         editor.reroute = true;
@@ -130,16 +159,80 @@
 
         let edgeMetadata = {};
         let currentSelectedEdge = null;
+        let saveTimeout = null;
+
+        function updateCloudStatus(text, state) {
+            document.getElementById('status-text').innerText = text;
+            const dot = document.getElementById('status-dot');
+            dot.className = 'status-dot';
+            if(state) dot.classList.add(`status-${state}`);
+        }
 
         function closeModal(modalId) { document.getElementById(modalId).style.display = 'none'; }
 
-        // --- GLOBAL VIEW CONTROLS & BRUTE FORCE WIRE SNAPPING ---
+        // ==========================================
+        // 3. PERSISTENCE (CLOUD DEBOUNCING + LOCAL)
+        // ==========================================
+        function queueSave() {
+            const data = editor.export();
+            localStorage.setItem('flatline_workspace', JSON.stringify({ drawflow: data, edges: edgeMetadata }));
+
+            if (isFirebaseActive) {
+                updateCloudStatus("Syncing...", "syncing");
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    db.collection("flatline_curriculum").doc("main_dag").set({
+                        drawflow: data,
+                        edges: edgeMetadata,
+                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                    }).then(() => updateCloudStatus("Cloud Synced", "saved"))
+                      .catch(error => { console.error("Cloud Error:", error); updateCloudStatus("Sync Failed", "error"); });
+                }, 1500);
+            }
+        }
+
+        editor.on('nodeCreated', queueSave); editor.on('nodeRemoved', queueSave);
+        editor.on('connectionCreated', queueSave); editor.on('connectionRemoved', queueSave);
+        editor.on('nodeMoved', queueSave); document.getElementById('drawflow').addEventListener('input', queueSave);
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            if (isFirebaseActive) {
+                try {
+                    const doc = await db.collection("flatline_curriculum").doc("main_dag").get();
+                    if (doc.exists) {
+                        loadWorkspaceData(doc.data());
+                        updateCloudStatus("Cloud Synced", "saved");
+                    } else { loadLocalFallback(); }
+                } catch (error) { loadLocalFallback(); updateCloudStatus("Cloud Load Failed", "error"); }
+            } else { loadLocalFallback(); }
+        });
+
+        function loadLocalFallback() {
+            const saved = localStorage.getItem('flatline_workspace');
+            if (saved) { try { loadWorkspaceData(JSON.parse(saved)); } catch(e) {} }
+        }
+
+        function loadWorkspaceData(parsed) {
+            editor.import(parsed.drawflow);
+            edgeMetadata = parsed.edges || {};
+            applySubjectColorsToAll(); updateAllNodeTitles(); collapseAllNodes(); 
+        }
+
+        function downloadWorkspace() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ drawflow: editor.export(), edges: edgeMetadata }));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "flatline_local_backup.json");
+            document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
+        }
+
+        // ==========================================
+        // 4. DAG LOGIC & VISUALS
+        // ==========================================
         function snapAllWires() {
             const snapCore = () => {
                 const data = editor.export().drawflow.Home.data;
-                for (const nodeId in data) {
-                    try { editor.updateConnectionNodes(nodeId); } catch(e) {}
-                }
+                for (const nodeId in data) { try { editor.updateConnectionNodes(nodeId); } catch(e) {} }
             };
             snapCore(); requestAnimationFrame(snapCore); setTimeout(snapCore, 20); setTimeout(snapCore, 50); setTimeout(snapCore, 150);
         }
@@ -151,7 +244,7 @@
                 if (box) box.classList.add('collapsed');
                 if (btn) btn.innerText = '▼ Exp';
             });
-            snapAllWires(); saveToLocal();
+            snapAllWires(); queueSave();
         }
 
         function expandAllNodes() {
@@ -161,168 +254,64 @@
                 if (box) box.classList.remove('collapsed');
                 if (btn) btn.innerText = '▲ Col';
             });
-            snapAllWires(); saveToLocal();
+            snapAllWires(); queueSave();
         }
 
-        // --- NEW FEATURE: SQRT AUTO-GENERATE EXAM WEIGHTS ---
         function autoGenerateWeights() {
-            if (!confirm("This will auto-calculate Exam Weights using a Square-Root curve (0.2 + 0.8 * sqrt(yield/maxYield)) to preserve the value of foundational chapters. \n\nAre you sure?")) return;
-
-            let max_main = 0.1, max_adv = 0.1, max_boards = 0.1;
+            if (!confirm("This will auto-calculate Exam Weights (0.2 + 0.8 * sqrt(yield/maxYield)) per subject.\n\nAre you sure?")) return;
+            
             const nodes = document.querySelectorAll('.drawflow-node');
+            
+            const maxYields = {
+                'Physics': { m: 0.1, a: 0.1 },
+                'Chemistry': { m: 0.1, a: 0.1 },
+                'Mathematics': { m: 0.1, a: 0.1 },
+                'Biology': { m: 0.1, a: 0.1 }
+            };
 
             nodes.forEach(node => {
+                const subj = node.querySelector('[df-subject]').value || 'Physics';
                 const ym = parseFloat(node.querySelector('[df-yield_main]').value) || 0;
                 const ya = parseFloat(node.querySelector('[df-yield_adv]').value) || 0;
-                const yb = parseFloat(node.querySelector('[df-yield_boards]').value) || 0;
-                if (ym > max_main) max_main = ym;
-                if (ya > max_adv) max_adv = ya;
-                if (yb > max_boards) max_boards = yb;
+                
+                if (maxYields[subj]) {
+                    if (ym > maxYields[subj].m) maxYields[subj].m = ym; 
+                    if (ya > maxYields[subj].a) maxYields[subj].a = ya; 
+                }
             });
 
             nodes.forEach(node => {
+                const subj = node.querySelector('[df-subject]').value || 'Physics';
                 const ym = parseFloat(node.querySelector('[df-yield_main]').value) || 0;
                 const ya = parseFloat(node.querySelector('[df-yield_adv]').value) || 0;
-                const yb = parseFloat(node.querySelector('[df-yield_boards]').value) || 0;
 
-                // Square Root Normalization Implementation
-                const wm = ym > 0 ? Math.min(0.2 + 0.8 * Math.sqrt(ym / max_main), 1.0).toFixed(2) : 0;
-                const wa = ya > 0 ? Math.min(0.2 + 0.8 * Math.sqrt(ya / max_adv), 1.0).toFixed(2) : 0;
-                const wb = yb > 0 ? Math.min(0.2 + 0.8 * Math.sqrt(yb / max_boards), 1.0).toFixed(2) : 0;
+                const sMax = maxYields[subj] || { m: 0.1, a: 0.1 };
 
-                const i_wm = node.querySelector('[df-w_main]');
-                const i_wa = node.querySelector('[df-w_adv]');
-                const i_wb = node.querySelector('[df-w_boards]');
+                const wm = ym > 0 ? Math.min(0.2 + 0.8 * Math.sqrt(ym / sMax.m), 1.0).toFixed(2) : 0;
+                const wa = ya > 0 ? Math.min(0.2 + 0.8 * Math.sqrt(ya / sMax.a), 1.0).toFixed(2) : 0;
 
-                i_wm.value = wm; i_wa.value = wa; i_wb.value = wb;
-                i_wm.dispatchEvent(new Event('input')); i_wa.dispatchEvent(new Event('input')); i_wb.dispatchEvent(new Event('input'));
+                const i_wm = node.querySelector('[df-w_main]'); const i_wa = node.querySelector('[df-w_adv]');
+                i_wm.value = wm; i_wa.value = wa;
+                i_wm.dispatchEvent(new Event('input')); i_wa.dispatchEvent(new Event('input'));
             });
-
-            saveToLocal();
+            queueSave();
         }
 
-        // --- AUTOSAVE ---
-        function saveToLocal() {
-            const data = editor.export();
-            localStorage.setItem('flatline_workspace', JSON.stringify({ drawflow: data, edges: edgeMetadata }));
-        }
-
-        editor.on('nodeCreated', saveToLocal); editor.on('nodeRemoved', saveToLocal);
-        editor.on('connectionCreated', saveToLocal); editor.on('connectionRemoved', saveToLocal);
-        editor.on('nodeMoved', saveToLocal); document.getElementById('drawflow').addEventListener('input', saveToLocal);
-
-        // --- LOAD EVENT ---
-        window.addEventListener('DOMContentLoaded', () => {
-            const saved = localStorage.getItem('flatline_workspace');
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    editor.import(parsed.drawflow);
-                    edgeMetadata = parsed.edges || {};
-                    applySubjectColorsToAll();
-                    updateAllNodeTitles();
-                    collapseAllNodes(); 
-                } catch(e) { console.error("Failed to load local storage", e); }
-            }
-        });
-
-        // --- FILE I/O ---
-        function downloadWorkspace() {
-            saveToLocal();
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(localStorage.getItem('flatline_workspace'));
-            const downloadAnchorNode = document.createElement('a');
-            downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "flatline_workspace.json");
-            document.body.appendChild(downloadAnchorNode); downloadAnchorNode.click(); downloadAnchorNode.remove();
-        }
-
-        function loadWorkspaceFromFile(event) {
-            const file = event.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (Array.isArray(parsed) || parsed.chapters) {
-                        alert("⚠️ WRONG FILE TYPE ⚠️\nYou uploaded Engine JSON. Please use the orange 'Import Engine JSON' button for this file.");
-                        return;
-                    }
-                    if (!parsed.drawflow) { alert("ERROR: Invalid workspace file."); return; }
-                    editor.import(parsed.drawflow); edgeMetadata = parsed.edges || {};
-                    applySubjectColorsToAll(); updateAllNodeTitles();
-                    collapseAllNodes(); 
-                } catch(err) { alert("Invalid JSON file."); }
-            };
-            reader.readAsText(file); event.target.value = '';
-        }
-
-        // --- REVERSE COMPILER (IMPORT ENGINE JSON) ---
-        function importEngineJSON(event) {
-            const file = event.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    let parsed = JSON.parse(e.target.result);
-                    if (parsed.chapters) parsed = parsed.chapters; 
-                    if (!Array.isArray(parsed)) { alert("ERROR: File must be an array of Flatline chapters."); return; }
-
-                    editor.clearModuleSelected();
-                    edgeMetadata = {};
-                    const idMap = {}; 
-
-                    parsed.forEach((c, index) => {
-                        const nodeData = {
-                            chapter_id: c.id || "", name: c.name || "", subject: c.subject || "Physics",
-                            isRoot: c.rootNode ? "true" : "false", baseHours: c.baseHours || 10, effort: c.effort || 5,
-                            yield_main: c.yield?.jee_main || 0, yield_adv: c.yield?.jee_adv || 0, yield_boards: c.yield?.boards || 0,
-                            w_main: c.examWeight?.jee_main || 1.0, w_adv: c.examWeight?.jee_adv || 1.0, w_boards: c.examWeight?.boards || 1.0
-                        };
-                        const px = 100 + (index % 4) * 350; 
-                        const py = 100 + Math.floor(index / 4) * 300;
-                        const nodeId = editor.addNode('chapter', 1, 1, px, py, 'chapter', nodeData, getChapterHTML());
-                        idMap[c.id] = nodeId;
-                    });
-
-                    parsed.forEach(c => {
-                        const toNodeId = idMap[c.id];
-                        if (!toNodeId || !c.dependencies) return;
-                        
-                        c.dependencies.forEach(dep => {
-                            const fromNodeId = idMap[dep.fromId];
-                            if (fromNodeId) {
-                                editor.addConnection(fromNodeId, toNodeId, 'output_1', 'input_1');
-                                const edgeKey = `${fromNodeId}-${toNodeId}`;
-                                edgeMetadata[edgeKey] = {
-                                    weight: dep.weight || 1.0, requiredMastery: dep.requiredMastery || "U2", notes: dep.notes || ""
-                                };
-                            }
-                        });
-                    });
-
-                    applySubjectColorsToAll(); updateAllNodeTitles();
-                    collapseAllNodes(); 
-                    alert("✅ Import Successful!\n\nI have automatically drawn the nodes and connected the wires.");
-                } catch(err) { alert("Failed to parse file."); console.error(err); }
-            };
-            reader.readAsText(file); event.target.value = '';
-        }
-
-        // --- DYNAMIC UI FUNCTIONS ---
         function updateTitle(input) {
             const display = input.closest('.drawflow-node').querySelector('.node-title-display');
-            display.innerText = input.value || "Unnamed Chapter"; saveToLocal();
+            display.innerText = input.value || "Unnamed Chapter"; queueSave();
         }
 
         function updateAllNodeTitles() {
             document.querySelectorAll('.drawflow-node').forEach(node => {
-                const nameInput = node.querySelector('[df-name]');
-                if (nameInput) updateTitle(nameInput);
+                const nameInput = node.querySelector('[df-name]'); if (nameInput) updateTitle(nameInput);
             });
         }
 
         function updateSubjectColor(select) {
             const node = select.closest('.drawflow-node');
-            node.classList.remove('subj-Physics', 'subj-Chemistry', 'subj-Mathematics');
-            node.classList.add('subj-' + select.value); saveToLocal();
+            node.classList.remove('subj-Physics', 'subj-Chemistry', 'subj-Mathematics', 'subj-Biology');
+            node.classList.add('subj-' + select.value); queueSave();
         }
 
         function applySubjectColorsToAll() {
@@ -342,19 +331,15 @@
             event.stopPropagation();
             const sourceNode = btn.closest('.drawflow-node');
             const nodeId = sourceNode.id.replace('node-', '');
-            
             const rawData = editor.export().drawflow.Home.data[nodeId];
-            if (!rawData) { console.error('Clone failed: node not found', nodeId); return; }
-            
+            if (!rawData) return;
             const newData = JSON.parse(JSON.stringify(rawData.data)); 
             const uniqueSuffix = "_copy_" + Math.floor(Math.random() * 10000);
             newData.chapter_id = (newData.chapter_id || "unnamed") + uniqueSuffix; 
             newData.name = (newData.name || "Unnamed") + " (Copy)";
             
             const isCollapsed = sourceNode.querySelector('.box').classList.contains('collapsed');
-            const posX = (rawData.pos_x ?? window.innerWidth/2) + 30;
-            const posY = (rawData.pos_y ?? window.innerHeight/2) + 30;
-            
+            const posX = (rawData.pos_x ?? window.innerWidth/2) + 30; const posY = (rawData.pos_y ?? window.innerHeight/2) + 30;
             const newNodeId = editor.addNode('chapter', 1, 1, posX, posY, 'chapter', newData, getChapterHTML());
             
             setTimeout(() => { 
@@ -368,7 +353,7 @@
                         editor.updateConnectionNodes(newNodeId);
                     }
                 }
-                snapAllWires(); saveToLocal();
+                snapAllWires(); queueSave();
             }, 50); 
         }
 
@@ -386,12 +371,12 @@
         // --- EDGE EVENTS ---
         editor.on('connectionCreated', function(info) {
             const edgeKey = `${info.output_id}-${info.input_id}`;
-            if (!edgeMetadata[edgeKey]) edgeMetadata[edgeKey] = { weight: 1.0, requiredMastery: "U2", notes: "" };
+            if (!edgeMetadata[edgeKey]) edgeMetadata[edgeKey] = { weight: 1.00, requiredMastery: "U2", notes: "" };
         });
 
         editor.on('connectionSelected', function(info) {
             currentSelectedEdge = `${info.output_id}-${info.input_id}`;
-            const data = edgeMetadata[currentSelectedEdge] || { weight: 1.0, requiredMastery: "U2", notes: "" };
+            const data = edgeMetadata[currentSelectedEdge] || { weight: 1.00, requiredMastery: "U2", notes: "" };
             document.getElementById('edge-weight').value = data.weight; document.getElementById('edge-mastery').value = data.requiredMastery; document.getElementById('edge-notes').value = data.notes || "";
             const nodes = editor.export().drawflow.Home.data;
             document.getElementById('edge-desc').innerText = `${nodes[info.output_id].data.name || 'A'} ➔ ${nodes[info.input_id].data.name || 'B'}`;
@@ -401,7 +386,7 @@
         function saveEdgeData() {
             if (currentSelectedEdge) {
                 edgeMetadata[currentSelectedEdge] = { weight: parseFloat(document.getElementById('edge-weight').value), requiredMastery: document.getElementById('edge-mastery').value, notes: document.getElementById('edge-notes').value };
-                saveToLocal();
+                queueSave();
             }
             closeModal('edge-modal');
         }
@@ -411,13 +396,12 @@
                 const parts = currentSelectedEdge.split('-');
                 if (parts.length === 2) {
                     editor.removeSingleConnection(parts[0], parts[1], 'output_1', 'input_1');
-                    delete edgeMetadata[currentSelectedEdge]; saveToLocal();
+                    delete edgeMetadata[currentSelectedEdge]; queueSave();
                 }
             }
             closeModal('edge-modal');
         }
 
-        // --- HTML TEMPLATE ---
         function getChapterHTML() {
             return `
             <div class="subj-Physics">
@@ -428,37 +412,41 @@
                 <div class="box collapsed">
                     <div class="span-3"><label>ID (Unique)</label><input type="text" df-chapter_id placeholder="phy_chapter_id"></div>
                     <div class="span-2"><label>Name</label><input type="text" df-name placeholder="Chapter Name" oninput="updateTitle(this)"></div>
-                    <div><label>Subject</label><select df-subject onchange="updateSubjectColor(this)"><option value="Physics">Physics</option><option value="Chemistry">Chemistry</option><option value="Mathematics">Mathematics</option></select></div>
+                    <div><label>Subject</label><select df-subject onchange="updateSubjectColor(this)"><option value="Physics">Physics</option><option value="Chemistry">Chemistry</option><option value="Mathematics">Mathematics</option><option value="Biology">Biology</option></select></div>
                     <div class="section-label">Core Parameters</div>
                     <div><label>Root Node?</label><select df-isRoot><option value="false">No</option><option value="true">Yes</option></select></div>
                     <div><label>Base Hrs</label><input type="number" df-baseHours value="10"></div>
                     <div><label>Effort (3-10)</label><input type="number" df-effort value="5"></div>
                     <div class="section-label">Yield (Marks)</div>
-                    <div><label>Main</label><input type="number" step="0.1" df-yield_main value="4.0"></div>
-                    <div><label>Adv</label><input type="number" step="0.1" df-yield_adv value="2.0"></div>
-                    <div><label>Boards</label><input type="number" step="0.1" df-yield_boards value="3.0"></div>
-                    <div class="section-label">Exam Weight (0.0 - 1.0)</div>
-                    <div><label>Main</label><input type="number" step="0.1" df-w_main value="1.0"></div>
-                    <div><label>Adv</label><input type="number" step="0.1" df-w_adv value="1.0"></div>
-                    <div><label>Boards</label><input type="number" step="0.1" df-w_boards value="1.0"></div>
+                    <div><label>Main / NEET</label><input type="number" step="0.1" df-yield_main value="4.0"></div>
+                    <div><label>Advanced</label><input type="number" step="0.1" df-yield_adv value="2.0"></div>
+                    <div></div> <div class="section-label">Exam Weight (0.0 - 1.0)</div>
+                    <div><label>Main / NEET</label><input type="number" step="0.1" df-w_main value="1.0"></div>
+                    <div><label>Advanced</label><input type="number" step="0.1" df-w_adv value="1.0"></div>
+                    <div></div>
                 </div>
             </div>`;
         }
 
         function addChapterNode() {
             editor.addNode('chapter', 1, 1, window.innerWidth/2 - 160, window.innerHeight/2 - 200, 'chapter', 
-                { chapter_id: "", name: "", subject: "Physics", isRoot: "false", baseHours: 10, effort: 5, yield_main: 4.0, yield_adv: 2.0, yield_boards: 3.0, w_main: 1.0, w_adv: 1.0, w_boards: 1.0 }, 
+                { chapter_id: "", name: "", subject: "Physics", isRoot: "false", baseHours: 10, effort: 5, yield_main: 4.0, yield_adv: 2.0, w_main: 1.0, w_adv: 1.0 }, 
                 getChapterHTML()
             );
         }
 
-        // --- EXPORT COMPILER (SMART OMISSION) ---
+        // --- EXPORT COMPILER ---
         function exportToFlatlineJSON() {
             const rawData = editor.export().drawflow.Home.data;
             const flatlineArray = []; const idSet = new Set(); const adjList = {}; let orphans = [];
 
-            // 1. Validation & Graph Building
-            let max_main = 0.1, max_adv = 0.1, max_boards = 0.1;
+            const maxYields = {
+                'Physics': { m: 0.1, a: 0.1 },
+                'Chemistry': { m: 0.1, a: 0.1 },
+                'Mathematics': { m: 0.1, a: 0.1 },
+                'Biology': { m: 0.1, a: 0.1 }
+            };
+
             for (const key in rawData) {
                 const node = rawData[key]; const d = node.data;
                 const chapterId = (d.chapter_id || '').trim();
@@ -470,14 +458,17 @@
                 adjList[key] = [];
                 for (const conn of node.outputs.output_1.connections) adjList[key].push(conn.node);
 
-                // Track max yields for the smart export check
-                const ym = parseFloat(d.yield_main)||0, ya = parseFloat(d.yield_adv)||0, yb = parseFloat(d.yield_boards)||0;
-                if(ym > max_main) max_main = ym; if(ya > max_adv) max_adv = ya; if(yb > max_boards) max_boards = yb;
+                const subj = d.subject || 'Physics';
+                const ym = parseFloat(d.yield_main)||0, ya = parseFloat(d.yield_adv)||0;
+                
+                if (maxYields[subj]) {
+                    if (ym > maxYields[subj].m) maxYields[subj].m = ym; 
+                    if (ya > maxYields[subj].a) maxYields[subj].a = ya; 
+                }
             }
 
             if (orphans.length > 0 && !confirm(`Warning: ${orphans.length} orphan nodes found. Proceed?`)) return;
 
-            // 2. Cycle Detection
             function hasCycle() {
                 const visited = new Set(); const recStack = new Set();
                 function dfs(nodeKey) {
@@ -494,49 +485,43 @@
             }
             if (hasCycle()) { alert("CRITICAL ERROR: Cycle detected (DAG loop)."); return; }
 
-            // 3. JSON Compilation
             for (const key in rawData) {
                 const node = rawData[key]; const d = node.data;
                 const dependencies = [];
                 for (const conn of node.inputs.input_1.connections) {
                     const parentNode = rawData[conn.node];
                     if (parentNode) {
-                        const meta = edgeMetadata[`${conn.node}-${key}`] || { weight: 1.0, requiredMastery: "U2", notes: "" };
+                        const meta = edgeMetadata[`${conn.node}-${key}`] || { weight: 1.00, requiredMastery: "U2", notes: "" };
                         let depObj = { fromId: (parentNode.data.chapter_id || '').trim(), weight: meta.weight, requiredMastery: meta.requiredMastery };
                         if (meta.notes && meta.notes.trim() !== "") depObj.notes = meta.notes.trim();
                         dependencies.push(depObj);
                     }
                 }
 
-                const ym = parseFloat(d.yield_main)||0, ya = parseFloat(d.yield_adv)||0, yb = parseFloat(d.yield_boards)||0;
-                const actual_wm = parseFloat(d.w_main)||0, actual_wa = parseFloat(d.w_adv)||0, actual_wb = parseFloat(d.w_boards)||0;
+                const subj = d.subject || 'Physics';
+                const sMax = maxYields[subj] || { m: 0.1, a: 0.1 };
 
-                // Calculate the theoretical auto-weight using the same sqrt math
-                const expected_wm = ym > 0 ? (0.2 + 0.8 * Math.sqrt(ym / max_main)) : 0;
-                const expected_wa = ya > 0 ? (0.2 + 0.8 * Math.sqrt(ya / max_adv)) : 0;
-                const expected_wb = yb > 0 ? (0.2 + 0.8 * Math.sqrt(yb / max_boards)) : 0;
+                const ym = parseFloat(d.yield_main)||0, ya = parseFloat(d.yield_adv)||0;
+                const actual_wm = parseFloat(d.w_main)||0, actual_wa = parseFloat(d.w_adv)||0;
 
-                // If the user's manual value differs by more than 0.02, it's considered a manual override
-                const isCustomOverride = Math.abs(actual_wm - expected_wm) > 0.02 || 
-                                         Math.abs(actual_wa - expected_wa) > 0.02 || 
-                                         Math.abs(actual_wb - expected_wb) > 0.02;
+                const expected_wm = ym > 0 ? (0.2 + 0.8 * Math.sqrt(ym / sMax.m)) : 0;
+                const expected_wa = ya > 0 ? (0.2 + 0.8 * Math.sqrt(ya / sMax.a)) : 0;
+
+                const isCustomOverride = Math.abs(actual_wm - expected_wm) > 0.02 || Math.abs(actual_wa - expected_wa) > 0.02;
 
                 let nodeObj = {
-                    id: (d.chapter_id || '').trim(), subject: d.subject || "Physics", name: d.name || "Unnamed",
-                    yield: { jee_main: ym, jee_adv: ya, boards: yb },
+                    id: (d.chapter_id || '').trim(), subject: subj, name: d.name || "Unnamed",
+                    yield: { jee_main: ym, jee_adv: ya },
                     baseHours: parseFloat(d.baseHours) || 10, effort: Math.max(3, Math.min(10, parseInt(d.effort) || 5)),
                     rootNode: d.isRoot === "true", dependencies: dependencies
                 };
 
-                // Only export the examWeight object if the user manually deviated from the baseline curve
-                if (isCustomOverride) {
-                    nodeObj.examWeight = { jee_main: actual_wm, jee_adv: actual_wa, boards: actual_wb };
-                }
-
+                if (isCustomOverride) nodeObj.examWeight = { jee_main: actual_wm, jee_adv: actual_wa };
                 flatlineArray.push(nodeObj);
             }
 
-            document.getElementById("json-output").value = JSON.stringify(flatlineArray, null, 2);
+            const finalExport = { chapters: flatlineArray };
+            document.getElementById("json-output").value = JSON.stringify(finalExport, null, 2);
             document.getElementById("json-modal").style.display = "flex";
         }
     </script>
