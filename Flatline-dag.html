@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flatline V1.6.4 DAG Architect (Complete)</title>
+    <title>Flatline V1.6.5 DAG Architect</title>
     
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.css">
     <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.js"></script>
@@ -18,7 +18,7 @@
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); overflow: hidden; color: var(--text-color); }
         #drawflow { width: 100%; height: 100%; background-size: 25px 25px; background-image: linear-gradient(to right, #333 1px, transparent 1px), linear-gradient(to bottom, #333 1px, transparent 1px); }
 
-        .drawflow .drawflow-node { background: var(--node-bg) !important; border: 1px solid #444 !important; box-shadow: 0 4px 15px rgba(0,0,0,0.6) !important; border-radius: 8px !important; width: 320px; padding: 0 !important; z-index: 2; transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s; }
+        .drawflow .drawflow-node { background: var(--node-bg) !important; border: 1px solid #444 !important; box-shadow: 0 4px 15px rgba(0,0,0,0.6) !important; border-radius: 8px !important; width: 340px; padding: 0 !important; z-index: 2; transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s; }
         .drawflow .drawflow-node.selected { border: 1px solid var(--accent) !important; box-shadow: 0 0 15px rgba(0, 122, 204, 0.4) !important; }
         
         .subj-Physics .title-box { background: var(--subj-physics) !important; }
@@ -54,12 +54,13 @@
         .search-box { padding: 8px; border-radius: 5px; border: 1px solid #555; background: #111; color: white; width: 250px; }
         
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #252526; z-index: 100; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); border: 1px solid #444; padding: 20px; flex-direction: column; }
-        #json-modal { width: 70%; height: 80%; } #edge-modal { width: 300px; gap: 10px;}
+        #json-modal { width: 70%; height: 80%; } #edge-modal { width: 320px; gap: 10px;}
         textarea { flex-grow: 1; background: #1e1e1e; color: #d4d4d4; border: 1px solid #444; font-family: monospace; padding: 15px; border-radius: 5px; resize: none; }
         .close-btn { margin-top: 15px; align-self: flex-end; background: #555; border: none; color: white; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;}
         .close-btn:hover { background: #666; }
         .delete-btn { background: #8b0000; } .delete-btn:hover { background: #a50000; }
         #edge-modal select, #edge-modal input { width: 100%; background: #111; color: #fff; padding: 8px; border: 1px solid #555; border-radius: 4px; margin-bottom: 10px;}
+        .edge-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
     </style>
 </head>
 <body>
@@ -103,8 +104,24 @@
             <option value="0.19">0.19 (Soft Link)</option>
         </select>
         
-        <label>Required Mastery</label><select id="edge-mastery"><option value="U0">U0 (None)</option><option value="U1">U1 (Basic)</option><option value="U2" selected>U2 (Survival)</option><option value="U3">U3 (Strong)</option><option value="U4">U4 (Advanced)</option></select>
-        <label>Notes (Optional)</label><input type="text" id="edge-notes" placeholder="Why is this required?">
+        <div class="section-label" style="margin-top: 5px; color: var(--accent);">Required Mastery Gates</div>
+        <div class="edge-grid">
+            <div>
+                <label>JEE Main</label>
+                <select id="edge-mastery-main"><option value="U0">U0</option><option value="U1">U1</option><option value="U2" selected>U2</option><option value="U3">U3</option><option value="U4">U4</option></select>
+            </div>
+            <div>
+                <label>JEE Adv</label>
+                <select id="edge-mastery-adv"><option value="U0">U0</option><option value="U1">U1</option><option value="U2" selected>U2</option><option value="U3">U3</option><option value="U4">U4</option></select>
+            </div>
+            <div>
+                <label>NEET</label>
+                <select id="edge-mastery-neet"><option value="U0">U0</option><option value="U1">U1</option><option value="U2" selected>U2</option><option value="U3">U3</option><option value="U4">U4</option></select>
+            </div>
+        </div>
+
+        <label style="margin-top: 10px;">Notes (Optional)</label><input type="text" id="edge-notes" placeholder="Why is this required?">
+        
         <button class="primary-btn" onclick="saveEdgeData()" style="width: 100%; margin-top: 10px;">Save Edge</button>
         <button class="close-btn delete-btn" style="width: 100%; margin-top: 5px;" onclick="deleteSelectedEdge()">Delete Edge</button>
         <button class="close-btn" style="width: 100%; margin-top: 5px;" onclick="closeModal('edge-modal')">Cancel</button>
@@ -150,7 +167,6 @@
                 try {
                     const parsed = JSON.parse(saved);
                     
-                    // Purge ghost "Boards" data silently before loading
                     if(parsed.drawflow && parsed.drawflow.Home && parsed.drawflow.Home.data) {
                         Object.values(parsed.drawflow.Home.data).forEach(n => {
                             if (n.data) {
@@ -165,7 +181,7 @@
                     applySubjectColorsToAll();
                     updateAllNodeTitles();
                     collapseAllNodes(); 
-                    saveToLocal(); // Resave the cleaned version
+                    saveToLocal(); 
                 } catch(e) { console.error("Failed to load local storage", e); }
             }
         });
@@ -191,7 +207,6 @@
                     }
                     if (!parsed.drawflow) { alert("ERROR: Invalid workspace file."); return; }
                     
-                    // Purge ghost data on import too
                     if(parsed.drawflow && parsed.drawflow.Home && parsed.drawflow.Home.data) {
                         Object.values(parsed.drawflow.Home.data).forEach(n => {
                             if (n.data) { delete n.data.yield_boards; delete n.data.w_boards; }
@@ -236,23 +251,25 @@
         }
 
         function autoGenerateWeights() {
-            if (!confirm("This will auto-calculate Exam Weights (0.2 + 0.8 * sqrt(yield/maxYield)) per subject.\n\nIt evaluates 'maxYield' PER SUBJECT, preventing cross-subject interference.\n\nAre you sure?")) return;
+            if (!confirm("This will auto-calculate Exam Weights (0.2 + 0.8 * sqrt(yield/maxYield)) for Main, Adv, and NEET per subject.\n\nAre you sure?")) return;
             
             const nodes = document.querySelectorAll('.drawflow-node');
             const maxYields = {
-                'Physics': { m: 0.1, a: 0.1 },
-                'Chemistry': { m: 0.1, a: 0.1 },
-                'Mathematics': { m: 0.1, a: 0.1 },
-                'Biology': { m: 0.1, a: 0.1 }
+                'Physics': { m: 0.1, a: 0.1, n: 0.1 },
+                'Chemistry': { m: 0.1, a: 0.1, n: 0.1 },
+                'Mathematics': { m: 0.1, a: 0.1, n: 0.1 },
+                'Biology': { m: 0.1, a: 0.1, n: 0.1 }
             };
 
             nodes.forEach(node => {
                 const subj = node.querySelector('[df-subject]').value || 'Physics';
                 const ym = parseFloat(node.querySelector('[df-yield_main]').value) || 0;
                 const ya = parseFloat(node.querySelector('[df-yield_adv]').value) || 0;
+                const yn = parseFloat(node.querySelector('[df-yield_neet]').value) || 0;
                 if (maxYields[subj]) {
                     if (ym > maxYields[subj].m) maxYields[subj].m = ym; 
                     if (ya > maxYields[subj].a) maxYields[subj].a = ya; 
+                    if (yn > maxYields[subj].n) maxYields[subj].n = yn; 
                 }
             });
 
@@ -260,17 +277,22 @@
                 const subj = node.querySelector('[df-subject]').value || 'Physics';
                 const ym = parseFloat(node.querySelector('[df-yield_main]').value) || 0;
                 const ya = parseFloat(node.querySelector('[df-yield_adv]').value) || 0;
-                const sMax = maxYields[subj] || { m: 0.1, a: 0.1 };
+                const yn = parseFloat(node.querySelector('[df-yield_neet]').value) || 0;
+                const sMax = maxYields[subj] || { m: 0.1, a: 0.1, n: 0.1 };
 
                 const wm = ym > 0 ? Math.min(0.2 + 0.8 * Math.sqrt(ym / sMax.m), 1.0).toFixed(2) : 0;
                 const wa = ya > 0 ? Math.min(0.2 + 0.8 * Math.sqrt(ya / sMax.a), 1.0).toFixed(2) : 0;
+                const wn = yn > 0 ? Math.min(0.2 + 0.8 * Math.sqrt(yn / sMax.n), 1.0).toFixed(2) : 0;
 
-                const i_wm = node.querySelector('[df-w_main]'); const i_wa = node.querySelector('[df-w_adv]');
-                i_wm.value = wm; i_wa.value = wa;
-                i_wm.dispatchEvent(new Event('input')); i_wa.dispatchEvent(new Event('input'));
+                const i_wm = node.querySelector('[df-w_main]'); 
+                const i_wa = node.querySelector('[df-w_adv]');
+                const i_wn = node.querySelector('[df-w_neet]');
+                
+                i_wm.value = wm; i_wa.value = wa; i_wn.value = wn;
+                i_wm.dispatchEvent(new Event('input')); i_wa.dispatchEvent(new Event('input')); i_wn.dispatchEvent(new Event('input'));
             });
             saveToLocal();
-            alert("✨ Exam Weights have been automatically normalized per subject!");
+            alert("✨ Exam Weights have been automatically normalized per subject for all 3 exams!");
         }
 
         function updateTitle(input) {
@@ -347,13 +369,26 @@
         // --- EDGE EVENTS ---
         editor.on('connectionCreated', function(info) {
             const edgeKey = `${info.output_id}-${info.input_id}`;
-            if (!edgeMetadata[edgeKey]) edgeMetadata[edgeKey] = { weight: 1.00, requiredMastery: "U2", notes: "" };
+            if (!edgeMetadata[edgeKey]) edgeMetadata[edgeKey] = { weight: 1.00, requiredMastery: { main: "U2", adv: "U2", neet: "U2" }, notes: "" };
         });
 
         editor.on('connectionSelected', function(info) {
             currentSelectedEdge = `${info.output_id}-${info.input_id}`;
-            const data = edgeMetadata[currentSelectedEdge] || { weight: 1.00, requiredMastery: "U2", notes: "" };
-            document.getElementById('edge-weight').value = data.weight; document.getElementById('edge-mastery').value = data.requiredMastery; document.getElementById('edge-notes').value = data.notes || "";
+            const data = edgeMetadata[currentSelectedEdge] || { weight: 1.00, requiredMastery: { main: "U2", adv: "U2", neet: "U2" }, notes: "" };
+            
+            document.getElementById('edge-weight').value = data.weight;
+            
+            // Handle legacy edge formats seamlessly
+            const rm = typeof data.requiredMastery === 'string' 
+                ? { main: data.requiredMastery, adv: data.requiredMastery, neet: data.requiredMastery } 
+                : data.requiredMastery;
+                
+            document.getElementById('edge-mastery-main').value = rm.main || "U2";
+            document.getElementById('edge-mastery-adv').value = rm.adv || "U2";
+            document.getElementById('edge-mastery-neet').value = rm.neet || "U2";
+            
+            document.getElementById('edge-notes').value = data.notes || "";
+            
             const nodes = editor.export().drawflow.Home.data;
             document.getElementById('edge-desc').innerText = `${nodes[info.output_id].data.name || 'A'} ➔ ${nodes[info.input_id].data.name || 'B'}`;
             document.getElementById('edge-modal').style.display = 'flex';
@@ -361,7 +396,15 @@
 
         function saveEdgeData() {
             if (currentSelectedEdge) {
-                edgeMetadata[currentSelectedEdge] = { weight: parseFloat(document.getElementById('edge-weight').value), requiredMastery: document.getElementById('edge-mastery').value, notes: document.getElementById('edge-notes').value };
+                edgeMetadata[currentSelectedEdge] = { 
+                    weight: parseFloat(document.getElementById('edge-weight').value), 
+                    requiredMastery: {
+                        main: document.getElementById('edge-mastery-main').value,
+                        adv: document.getElementById('edge-mastery-adv').value,
+                        neet: document.getElementById('edge-mastery-neet').value
+                    }, 
+                    notes: document.getElementById('edge-notes').value 
+                };
                 saveToLocal();
             }
             closeModal('edge-modal');
@@ -378,7 +421,6 @@
             closeModal('edge-modal');
         }
 
-        // --- TEMPLATE ---
         function getChapterHTML() {
             return `
             <div class="subj-Physics">
@@ -396,20 +438,23 @@
                     <div><label>Root Node?</label><select df-isRoot><option value="false">No</option><option value="true">Yes</option></select></div>
                     <div><label>Base Hrs</label><input type="number" df-baseHours value="10"></div>
                     <div><label>Effort (3-10)</label><input type="number" df-effort value="5"></div>
+                    
                     <div class="section-label">Yield (Marks)</div>
-                    <div><label>Main / NEET</label><input type="number" step="0.1" df-yield_main value="4.0"></div>
-                    <div><label>Advanced</label><input type="number" step="0.1" df-yield_adv value="2.0"></div>
-                    <div></div> <div class="section-label">Exam Weight (0.0 - 1.0)</div>
-                    <div><label>Main / NEET</label><input type="number" step="0.1" df-w_main value="1.0"></div>
-                    <div><label>Advanced</label><input type="number" step="0.1" df-w_adv value="1.0"></div>
-                    <div></div>
+                    <div><label>JEE Main</label><input type="number" step="0.1" df-yield_main value="4.0"></div>
+                    <div><label>JEE Adv</label><input type="number" step="0.1" df-yield_adv value="2.0"></div>
+                    <div><label>NEET</label><input type="number" step="0.1" df-yield_neet value="4.0"></div>
+                    
+                    <div class="section-label">Exam Weight (0.0 - 1.0)</div>
+                    <div><label>JEE Main</label><input type="number" step="0.1" df-w_main value="1.0"></div>
+                    <div><label>JEE Adv</label><input type="number" step="0.1" df-w_adv value="1.0"></div>
+                    <div><label>NEET</label><input type="number" step="0.1" df-w_neet value="1.0"></div>
                 </div>
             </div>`;
         }
 
         function addChapterNode() {
             editor.addNode('chapter', 1, 1, window.innerWidth/2 - 160, window.innerHeight/2 - 200, 'chapter', 
-                { chapter_id: "", name: "", subject: "Physics", isRoot: "false", baseHours: 10, effort: 5, yield_main: 4.0, yield_adv: 2.0, w_main: 1.0, w_adv: 1.0 }, 
+                { chapter_id: "", name: "", subject: "Physics", isRoot: "false", baseHours: 10, effort: 5, yield_main: 4.0, yield_adv: 2.0, yield_neet: 4.0, w_main: 1.0, w_adv: 1.0, w_neet: 1.0 }, 
                 getChapterHTML()
             );
         }
@@ -432,8 +477,8 @@
                         const nodeData = {
                             chapter_id: c.id || "", name: c.name || "", subject: c.subject || "Physics",
                             isRoot: c.rootNode ? "true" : "false", baseHours: c.baseHours || 10, effort: c.effort || 5,
-                            yield_main: c.yield?.jee_main || 0, yield_adv: c.yield?.jee_adv || 0,
-                            w_main: c.examWeight?.jee_main || 1.0, w_adv: c.examWeight?.jee_adv || 1.0
+                            yield_main: c.yield?.jee_main || 0, yield_adv: c.yield?.jee_adv || 0, yield_neet: c.yield?.neet || 0,
+                            w_main: c.examWeight?.jee_main || 1.0, w_adv: c.examWeight?.jee_adv || 1.0, w_neet: c.examWeight?.neet || 1.0
                         };
                         const px = 100 + (index % 4) * 350; 
                         const py = 100 + Math.floor(index / 4) * 300;
@@ -449,8 +494,14 @@
                             if (fromNodeId) {
                                 editor.addConnection(fromNodeId, toNodeId, 'output_1', 'input_1');
                                 const edgeKey = `${fromNodeId}-${toNodeId}`;
+                                
+                                // Legacy support for single-string requiredMastery
+                                let rm = dep.requiredMastery || "U2";
+                                if (typeof rm === 'string') rm = { main: rm, adv: rm, neet: rm };
+                                else { rm = { main: rm.jee_main || "U2", adv: rm.jee_adv || "U2", neet: rm.neet || "U2" }; }
+
                                 edgeMetadata[edgeKey] = {
-                                    weight: dep.weight || 1.00, requiredMastery: dep.requiredMastery || "U2", notes: dep.notes || ""
+                                    weight: dep.weight || 1.00, requiredMastery: rm, notes: dep.notes || ""
                                 };
                             }
                         });
@@ -470,10 +521,10 @@
             const flatlineArray = []; const idSet = new Set(); const adjList = {}; let orphans = [];
 
             const maxYields = {
-                'Physics': { m: 0.1, a: 0.1 },
-                'Chemistry': { m: 0.1, a: 0.1 },
-                'Mathematics': { m: 0.1, a: 0.1 },
-                'Biology': { m: 0.1, a: 0.1 }
+                'Physics': { m: 0.1, a: 0.1, n: 0.1 },
+                'Chemistry': { m: 0.1, a: 0.1, n: 0.1 },
+                'Mathematics': { m: 0.1, a: 0.1, n: 0.1 },
+                'Biology': { m: 0.1, a: 0.1, n: 0.1 }
             };
 
             for (const key in rawData) {
@@ -488,11 +539,12 @@
                 for (const conn of node.outputs.output_1.connections) adjList[key].push(conn.node);
 
                 const subj = d.subject || 'Physics';
-                const ym = parseFloat(d.yield_main)||0, ya = parseFloat(d.yield_adv)||0;
+                const ym = parseFloat(d.yield_main)||0, ya = parseFloat(d.yield_adv)||0, yn = parseFloat(d.yield_neet)||0;
                 
                 if (maxYields[subj]) {
                     if (ym > maxYields[subj].m) maxYields[subj].m = ym; 
                     if (ya > maxYields[subj].a) maxYields[subj].a = ya; 
+                    if (yn > maxYields[subj].n) maxYields[subj].n = yn; 
                 }
             }
 
@@ -520,32 +572,47 @@
                 for (const conn of node.inputs.input_1.connections) {
                     const parentNode = rawData[conn.node];
                     if (parentNode) {
-                        const meta = edgeMetadata[`${conn.node}-${key}`] || { weight: 1.00, requiredMastery: "U2", notes: "" };
-                        let depObj = { fromId: (parentNode.data.chapter_id || '').trim(), weight: meta.weight, requiredMastery: meta.requiredMastery };
+                        const meta = edgeMetadata[`${conn.node}-${key}`] || { weight: 1.00, requiredMastery: { main: "U2", adv: "U2", neet: "U2" }, notes: "" };
+                        
+                        // Handle legacy edge formats seamlessly during export
+                        const rm = typeof meta.requiredMastery === 'string' 
+                            ? { main: meta.requiredMastery, adv: meta.requiredMastery, neet: meta.requiredMastery } 
+                            : meta.requiredMastery;
+
+                        let depObj = { 
+                            fromId: (parentNode.data.chapter_id || '').trim(), 
+                            weight: meta.weight, 
+                            requiredMastery: {
+                                jee_main: rm.main || "U2",
+                                jee_adv: rm.adv || "U2",
+                                neet: rm.neet || "U2"
+                            }
+                        };
                         if (meta.notes && meta.notes.trim() !== "") depObj.notes = meta.notes.trim();
                         dependencies.push(depObj);
                     }
                 }
 
                 const subj = d.subject || 'Physics';
-                const sMax = maxYields[subj] || { m: 0.1, a: 0.1 };
+                const sMax = maxYields[subj] || { m: 0.1, a: 0.1, n: 0.1 };
 
-                const ym = parseFloat(d.yield_main)||0, ya = parseFloat(d.yield_adv)||0;
-                const actual_wm = parseFloat(d.w_main)||0, actual_wa = parseFloat(d.w_adv)||0;
+                const ym = parseFloat(d.yield_main)||0, ya = parseFloat(d.yield_adv)||0, yn = parseFloat(d.yield_neet)||0;
+                const actual_wm = parseFloat(d.w_main)||0, actual_wa = parseFloat(d.w_adv)||0, actual_wn = parseFloat(d.w_neet)||0;
 
                 const expected_wm = ym > 0 ? (0.2 + 0.8 * Math.sqrt(ym / sMax.m)) : 0;
                 const expected_wa = ya > 0 ? (0.2 + 0.8 * Math.sqrt(ya / sMax.a)) : 0;
+                const expected_wn = yn > 0 ? (0.2 + 0.8 * Math.sqrt(yn / sMax.n)) : 0;
 
-                const isCustomOverride = Math.abs(actual_wm - expected_wm) > 0.02 || Math.abs(actual_wa - expected_wa) > 0.02;
+                const isCustomOverride = Math.abs(actual_wm - expected_wm) > 0.02 || Math.abs(actual_wa - expected_wa) > 0.02 || Math.abs(actual_wn - expected_wn) > 0.02;
 
                 let nodeObj = {
                     id: (d.chapter_id || '').trim(), subject: subj, name: d.name || "Unnamed",
-                    yield: { jee_main: ym, jee_adv: ya },
+                    yield: { jee_main: ym, jee_adv: ya, neet: yn },
                     baseHours: parseFloat(d.baseHours) || 10, effort: Math.max(3, Math.min(10, parseInt(d.effort) || 5)),
                     rootNode: d.isRoot === "true", dependencies: dependencies
                 };
 
-                if (isCustomOverride) nodeObj.examWeight = { jee_main: actual_wm, jee_adv: actual_wa };
+                if (isCustomOverride) nodeObj.examWeight = { jee_main: actual_wm, jee_adv: actual_wa, neet: actual_wn };
                 flatlineArray.push(nodeObj);
             }
 
